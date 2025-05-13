@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Book Formatter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --mc-brown: #885D36;
+            --mc-dark-brown: #5C3D20;
+            --mc-light-brown: #C8B08F;
+            --mc-paper: #EBE2CA;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: var(--mc-dark-brown);
+            margin-bottom: 30px;
+        }
+        
+        .minecraft-header {
+            position: relative;
+            padding: 20px 0;
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #555;
+            text-shadow: 2px 2px 0 #ddd;
+            margin-bottom: 30px;
+            font-family: 'Minecraft', 'Segoe UI', Tahoma, sans-serif;
+        }
+        
+        .input-section {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .file-upload {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .file-upload-btn {
+            padding: 10px;
+            border: 2px dashed #aaa;
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .file-upload-btn:hover {
+            border-color: var(--mc-brown);
+            background-color: #f9f9f9;
+        }
+        
+        .text-input {
+            width: 100%;
+            min-height: 150px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .options-section {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .option-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .btn {
+            background-color: var(--mc-brown);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: var(--mc-dark-brown);
+        }
+        
+        .btn-primary {
+            background-color: var(--mc-brown);
+        }
+        
+        .btn-secondary {
+            background-color: #888;
+        }
+        
+        .buttons-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .preview-section {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .book-container {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .book-display {
+            background-color: var(--mc-paper);
+            border: 8px solid var(--mc-brown);
+            border-radius: 4px;
+            height: 400px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .book-pages {
+            display: flex;
+            height: 100%;
+            transition: transform 0.3s ease;
+        }
+        
+        .book-page {
+            min-width: 100%;
+            height: 100%;
+            padding: 15px;
+            box-sizing: border-box;
+            overflow: hidden;
+            font-family: 'Minecraft', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            color: #111;
+        }
+        
+        .page-navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        
+        .page-info {
+            text-align: center;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .error-message {
+            color: red;
+            background-color: #ffeeee;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid red;
+            margin: 10px 0;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            z-index: 10;
+        }
+        
+        .copy-code {
+            margin-top: 10px;
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f5f5f5;
+            font-family: monospace;
+            resize: vertical;
+        }
+        
+        .instruction {
+            background-color: #f8f8f8;
+            border-left: 4px solid var(--mc-brown);
+            padding: 10px;
+            margin: 15px 0;
+            font-size: 0.9rem;
+        }
+        
+        /* Minecraft font styles */
+        @font-face {
+            font-family: 'Minecraft';
+            src: url('https://cdn.jsdelivr.net/gh/South-Paw/typeface-minecraft@master/font/minecraftia-regular.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
+        
+        .minecraft-text {
+            font-family: 'Minecraft', monospace;
+            color: #333;
+        }
+        
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .preview-section {
+                flex-direction: column;
+            }
+            
+            .book-container {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="minecraft-header">
+            Minecraft Book Formatter
+        </div>
+        
+        <div class="input-section">
+            <h2>Input Text</h2>
+            
+            <div class="file-upload">
+                <label for="file-input">Upload a file (PDF, DOCX, TXT, CSV):</label>
+                <div class="file-upload-btn" id="upload-btn">
+                    Click to upload or drag and drop files here
+                </div>
+                <input type="file" id="file-input" accept=".pdf,.docx,.txt,.csv,.xls,.xlsx" style="display:none;">
+                <div id="file-name" class="hidden"></div>
+                <div id="error-message" class="error-message hidden"></div>
+            </div>
+            
+            <label for="text-input">Or paste text directly:</label>
+            <textarea id="text-input" class="text-input" placeholder="Paste your text here or upload a file..."></textarea>
+        </div>
+        
+        <div class="input-section">
+            <h2>Book Format Options</h2>
+            
+            <div class="options-section">
+                <div class="option-group">
+                    <label for="page-width">Characters per line:</label>
+                    <input type="number" id="page-width" value="19" min="1" max="30">
+                    
+                    <label for="page-height">Lines per page:</label>
+                    <input type="number" id="page-height" value="14" min="1" max="20">
+                </div>
+                
+                <div class="option-group">
+                    <label for="page-break">Page Break Style:</label>
+                    <select id="page-break">
+                        <option value="auto">Automatic (Smart)</option>
+                        <option value="word">Never break words</option>
+                        <option value="paragraph">Break at paragraphs</option>
+                    </select>
+                    
+                    <label for="format-option">Format Style:</label>
+                    <select id="format-option">
+                        <option value="plain">Plain Text</option>
+                        <option value="preserve">Preserve Format</option>
+                        <option value="minecraft">Minecraft Formatting Codes</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="buttons-row">
+                <button id="format-btn" class="btn btn-primary">Format Book</button>
+                <button id="clear-btn" class="btn btn-secondary">Clear</button>
+            </div>
+        </div>
+        
+        <div class="input-section" id="preview-container">
+            <h2>Preview</h2>
+            <div class="preview-section">
+                <div class="book-container">
+                    <div class="book-display">
+                        <div id="loading" class="loading hidden">Processing...</div>
+                        <div class="book-pages" id="book-pages">
+                            <!-- Pages will be added here -->
+                            <div class="book-page" id="initial-page">
+                                <p>Your formatted book will appear here...</p>
+                            </div>
+                        </div>
+                   <div class="page-navigation">
+    <button id="prev-page" class="btn">Previous</button>
+    <div class="page-info" id="page-info">Page 1 of 1</div>
+    <button id="copy-page-btn" class="btn btn-primary">Copy Page</button>
+    <button id="next-page" class="btn">Next</button>
+</div>
+                </div>
+                
+                <div class="book-container">
+                    <h3>Minecraft Code</h3>
+                    <p>Copy this code for your in-game books:</p>
+                    <textarea id="copy-code" class="copy-code" readonly></textarea>
+                    <button id="copy-btn" class="btn btn-primary">Copy to Clipboard</button>
+                    
+                    <div class="instruction">
+                        <p><strong>How to use in Minecraft:</strong></p>
+                        <ol>
+                            <li>Copy the generated code</li>
+                            <li>In Minecraft, use a command block or the /give command</li>
+                            <li>Paste the code to create your book</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Initialize PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        
+        // DOM Elements
+        const fileInput = document.getElementById('file-input');
+        const uploadBtn = document.getElementById('upload-btn');
+        const fileName = document.getElementById('file-name');
+        const errorMessage = document.getElementById('error-message');
+        const textInput = document.getElementById('text-input');
+        const formatBtn = document.getElementById('format-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const bookPages = document.getElementById('book-pages');
+        const pageInfo = document.getElementById('page-info');
+        const prevPageBtn = document.getElementById('prev-page');
+        const nextPageBtn = document.getElementById('next-page');
+        const copyCode = document.getElementById('copy-code');
+        const copyBtn = document.getElementById('copy-btn');
+        const loadingElement = document.getElementById('loading');
+        
+        // Book format options
+        const pageWidthInput = document.getElementById('page-width');
+        const pageHeightInput = document.getElementById('page-height');
+        const pageBreakSelect = document.getElementById('page-break');
+        const formatOptionSelect = document.getElementById('format-option');
+        
+        // State variables
+        let currentPage = 0;
+        let formattedPages = [];
+        let bookNbt = '';
+        
+        // File upload handling
+        uploadBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        // Drag and drop functionality
+        uploadBtn.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadBtn.style.backgroundColor = '#f0f0f0';
+            uploadBtn.style.borderColor = '#666';
+        });
+        
+        uploadBtn.addEventListener('dragleave', () => {
+            uploadBtn.style.backgroundColor = '';
+            uploadBtn.style.borderColor = '';
+        });
+        
+        uploadBtn.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBtn.style.backgroundColor = '';
+            uploadBtn.style.borderColor = '';
+            
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length) {
+                handleFile(fileInput.files[0]);
+            }
+        });
+        
+        // Handle uploaded file based on type
+        async function handleFile(file) {
+            hideError();
+            showLoading();
+            
+            fileName.textContent = `File: ${file.name}`;
+            fileName.classList.remove('hidden');
+            
+            const fileType = file.name.split('.').pop().toLowerCase();
+            
+            try {
+                let text = '';
+                
+                switch (fileType) {
+                    case 'pdf':
+                        text = await readPdf(file);
+                        break;
+                    case 'docx':
+                        text = await readDocx(file);
+                        break;
+                    case 'txt':
+                        text = await readTextFile(file);
+                        break;
+                    case 'csv':
+                        text = await readCsvFile(file);
+                        break;
+                    case 'xls':
+                    case 'xlsx':
+                        text = await readExcelFile(file);
+                        break;
+                    default:
+                        throw new Error('Unsupported file type');
+                }
+                
+                textInput.value = text;
+                hideLoading();
+            } catch (error) {
+                console.error('Error processing file:', error);
+                showError(error.message || 'Failed to process file');
+                hideLoading();
+            }
+        }
+        
+        // Read PDF files
+        async function readPdf(file) {
+            return new Promise((resolve, reject) => {
+                const fileReader = new FileReader();
+                
+                fileReader.onload = async function(event) {
+                    try {
+                        const typedArray = new Uint8Array(event.target.result);
+                        const pdfDoc = await pdfjsLib.getDocument({ data: typedArray }).promise;
+                        let text = '';
+                        
+                        for (let i = 1; i <= pdfDoc.numPages; i++) {
+                            const page = await pdfDoc.getPage(i);
+                            const content = await page.getTextContent();
+                            text += content.items.map(item => item.str).join(' ') + '\n\n';
+                        }
+                        
+                        resolve(text);
+                    } catch (error) {
+                        reject(new Error('Failed to parse PDF'));
+                    }
+                };
+                
+                fileReader.onerror = () => reject(new Error('Failed to read file'));
+                fileReader.readAsArrayBuffer(file);
+            });
+        }
+        
+        // Read DOCX files
+        async function readDocx(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    mammoth.extractRawText({ arrayBuffer: event.target.result })
+                    .then(result => {
+                        resolve(result.value);
+                    })
+                    .catch(error => {
+                        reject(new Error('Failed to parse DOCX'));
+                    });
+                };
+                
+                reader.onerror = () => reject(new Error('Failed to read file'));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+        
+        // Read text files
+        async function readTextFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    resolve(event.target.result);
+                };
+                
+                reader.onerror = () => reject(new Error('Failed to read file'));
+                reader.readAsText(file);
+            });
+        }
+        
+        // Read CSV files
+        async function readCsvFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    Papa.parse(event.target.result, {
+                        complete: function(results) {
+                            // Convert the parsed data to readable text format
+                            let text = '';
+                            for (const row of results.data) {
+                              if (row.join('').trim() !== '') { // Skip empty rows
+                                text += row.join(' | ') + '\n';
+                              }
+                            }
+                            resolve(text);
+                        },
+                        error: function() {
+                            reject(new Error('Failed to parse CSV'));
+                        }
+                    });
+                };
+                
+                reader.onerror = () => reject(new Error('Failed to read file'));
+                reader.readAsText(file);
+            });
+        }
+        
+        // Read Excel files
+        async function readExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        // Get the first worksheet
+                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                        
+                        // Convert to JSON
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        // Convert to text
+                        let text = '';
+                        for (const row of jsonData) {
+                            if (row.length > 0) { // Skip empty rows
+                                text += row.join(' | ') + '\n';
+                            }
+                        }
+                        
+                        resolve(text);
+                    } catch (error) {
+                        reject(new Error('Failed to parse Excel file'));
+                    }
+                };
+                
+                reader.onerror = () => reject(new Error('Failed to read file'));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+        
+        // Format book button click handler
+        formatBtn.addEventListener('click', () => {
+            const text = textInput.value.trim();
+            
+            if (!text) {
+                showError('Please enter some text or upload a file');
+                return;
+            }
+            
+            try {
+                formatBook(text);
+                hideError();
+            } catch (error) {
+                showError(error.message || 'Error formatting book');
+            }
+        });
+        
+        // Format book text into Minecraft pages
+        function formatBook(text) {
+            // Get formatting options
+            const pageWidth = parseInt(pageWidthInput.value, 10);
+            const pageHeight = parseInt(pageHeightInput.value, 10);
+            const pageBreakStyle = pageBreakSelect.value;
+            const formatStyle = formatOptionSelect.value;
+            
+            if (isNaN(pageWidth) || pageWidth < 1 || pageWidth > 30) {
+                throw new Error('Characters per line must be between 1 and 30');
+            }
+            
+            if (isNaN(pageHeight) || pageHeight < 1 || pageHeight > 20) {
+                throw new Error('Lines per page must be between 1 and 20');
+            }
+            
+            // Process format style
+            let formattedText = text;
+            if (formatStyle === 'preserve') {
+                // Preserve newlines, tabs, etc.
+                formattedText = text;
+            } else if (formatStyle === 'minecraft') {
+                // Leave Minecraft format codes as-is
+                formattedText = text;
+            } else {
+                // Plain text - strip any formatting
+                formattedText = text.replace(/§[0-9a-fklmnor]/g, '');
+            }
+            
+            // Split text into pages based on format options
+            formattedPages = [];
+            
+            if (pageBreakStyle === 'paragraph') {
+                // Break at paragraphs
+                const paragraphs = formattedText.split(/\n\s*\n/);
+                let currentPageLines = [];
+                let currentLineChars = 0;
+                
+                for (const paragraph of paragraphs) {
+                    const words = paragraph.split(/\s+/);
+                    let currentLine = '';
+                    
+                    for (const word of words) {
+                        // Check if adding this word would exceed page width
+                        if (currentLine.length + word.length + 1 > pageWidth) {
+                            // Add current line to current page
+                            currentPageLines.push(currentLine);
+                            currentLine = word;
+                            
+                            // Check if we need a new page
+                            if (currentPageLines.length >= pageHeight) {
+                                formattedPages.push(currentPageLines.join('\n'));
+                                currentPageLines = [];
+                            }
+                        } else {
+                            // Add word to current line
+                            currentLine = currentLine ? `${currentLine} ${word}` : word;
+                        }
+                    }
+                    
+                    // Add last line of paragraph
+                    if (currentLine) {
+                        currentPageLines.push(currentLine);
+                    }
+                    
+                    // Add a blank line between paragraphs (unless at page end)
+                    if (currentPageLines.length < pageHeight) {
+                        currentPageLines.push('');
+                    } else {
+                        formattedPages.push(currentPageLines.join('\n'));
+                        currentPageLines = [''];
+                    }
+                }
+                
+                // Add last page if not empty
+                if (currentPageLines.length > 0) {
+                    formattedPages.push(currentPageLines.join('\n'));
+                }
+            } else {
+                // Auto or word break modes
+                // Normalize line breaks
+                const normalizedText = formattedText.replace(/\r\n/g, '\n');
+                const lines = normalizedText.split('\n');
+                
+                let currentPageLines = [];
+                
+                for (const line of lines) {
+                    // Check if this is an empty line (paragraph break)
+                    if (line.trim() === '') {
+                        currentPageLines.push('');
+                        
+                        // Check if we need a new page
+                        if (currentPageLines.length >= pageHeight) {
+                            formattedPages.push(currentPageLines.join('\n'));
+                            currentPageLines = [];
+                        }
+                        continue;
+                    }
+                    
+                    // Process line that has content
+                    let remainingLine = line;
+                    
+                    while (remainingLine.length > 0) {
+                        if (remainingLine.length <= pageWidth) {
+                            // Line fits within page width
+                            currentPageLines.push(remainingLine);
+                            remainingLine = '';
+                        } else {
+                            // Line needs to be split
+                            if (pageBreakStyle === 'word') {
+                                // Find last space within page width
+                                let cutPoint = remainingLine.lastIndexOf(' ', pageWidth);
+                                
+                                if (cutPoint === -1) {
+                                    // No space found, cut at page width
+                                    cutPoint = pageWidth;
+                                }
+                                
+                                currentPageLines.push(remainingLine.substring(0, cutPoint));
+                                remainingLine = remainingLine.substring(cutPoint + 1);
+                            } else {
+                                // Auto break
+                                currentPageLines.push(remainingLine.substring(0, pageWidth));
+                                remainingLine = remainingLine.substring(pageWidth);
+                            }
+                        }
+                        
+                        // Check if we need a new page
+                        if (currentPageLines.length >= pageHeight) {
+                            formattedPages.push(currentPageLines.join('\n'));
+                            currentPageLines = [];
+                        }
+                    }
+                }
+                
+                // Add last page if not empty
+                if (currentPageLines.length > 0) {
+                    formattedPages.push(currentPageLines.join('\n'));
+                }
+            }
+            
+            // If no pages were created, create at least one
+            if (formattedPages.length === 0) {
+                formattedPages.push('');
+            }
+            
+            // Generate NBT data for book
+            generateBookNbt(formattedPages);
+            
+            // Display the first page
+            currentPage = 0;
+            displayPage(currentPage);
+            updatePageInfo();
+        }
+        
+        // Generate NBT data for Minecraft book
+        function generateBookNbt(pages) {
+            const nbtPages = pages.map(page => {
+                // Escape quotes and other special characters
+                const escaped = JSON.stringify(page).slice(1, -1); // Remove surrounding quotes
+                return `'${escaped}'`;
+            });
+            
+            // Generate /give command for written book
+            bookNbt = `/give @p written_book{pages:[${nbtPages.join(',')}],title:"Custom Book",author:"Book Formatter"}`;
+            copyCode.value = bookNbt;
+        }
+        
+        // Display a specific page in the preview
+        function displayPage(pageIndex) {
+            if (pageIndex < 0 || pageIndex >= formattedPages.length) {
+                return;
+            }
+            
+            // Clear previous pages
+            bookPages.innerHTML = '';
+            
+            // Add the current page
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'book-page minecraft-text';
+            
+            // Convert newlines to <br> for display
+            const pageContent = formattedPages[pageIndex].replace(/\n/g, '<br>');
+            pageDiv.innerHTML = pageContent || '<em>Empty page</em>';
+            
+            bookPages.appendChild(pageDiv);
+            currentPage = pageIndex;
+        }
+        
+        // Update page navigation info
+        function updatePageInfo() {
+            pageInfo.textContent = `Page ${currentPage + 1} of ${formattedPages.length}`;
+            
+            // Update navigation buttons state
+            prevPageBtn.disabled = currentPage <= 0;
+            nextPageBtn.disabled = currentPage >= formattedPages.length - 1;
+        }
+        
+        // Navigation buttons event handlers
+        prevPageBtn.addEventListener('click', () => {
+            if (currentPage > 0) {
+                displayPage(currentPage - 1);
+                updatePageInfo();
+            }
+        });
+        
+        nextPageBtn.addEventListener('click', () => {
+            if (currentPage < formattedPages.length - 1) {
+                displayPage(currentPage + 1);
+                updatePageInfo();
+            }
+        });
+        
+        // Copy to clipboard button
+        copyBtn.addEventListener('click', () => {
+            copyCode.select();
+            document.execCommand('copy');
+            
+            // Change button text temporarily
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = 'Copied!';
+            
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+            }, 2000);
+        });
+        
+        // Clear button handler
+        clearBtn.addEventListener('click', () => {
+            textInput.value = '';
+            fileName.textContent = '';
+            fileName.classList.add('hidden');
+            bookPages.innerHTML = '<div class="book-page" id="initial-page"><p>Your formatted book will appear here...</p></div>';
+            pageInfo.textContent = 'Page 1 of 1';
+            copyCode.value = '';
+            hideError();
+            <
+            // Reset file input
+            fileInput.value = '';
+        });
+        
+        // Error handling functions
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+        
+        function hideError() {
+            errorMessage.classList.add('hidden');
+        }
+        
+        function showLoading() {
+            loadingElement.classList.remove('hidden');
+        }
+        
+        function hideLoading() {
+            loadingElement.classList.add('hidden');
+        }
+        
+        // Initialize the app
+        function init() {
+            // Set default state
+            displayPage(0);
+            updatePageInfo();
+        }
+        
+        // Start the app
+        init();
+    </script>
+</body>
+</html>
