@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Book Formatter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script>
+        // Initialize PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1 {
+            color: #5C4033;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .input-area, .output-area {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            font-family: monospace;
+        }
+        button {
+            background-color: #7E5835;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #634527;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .output-display {
+            margin-top: 10px;
+        }
+        .book-viewer {
+            display: flex;
+            margin-top: 20px;
+            justify-content: center;
+            perspective: 1000px;
+        }
+        .book {
+            background-color: #C19A6B;
+            border: 2px solid #7E5835;
+            width: 300px;
+            height: 400px;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateY(-10deg);
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.2);
+            padding: 20px;
+            color: #3A3A3A;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            overflow: hidden;
+        }
+        .book-page {
+            background-color: #F8F0E3;
+            height: 100%;
+            padding: 15px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .control-panel {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .page-indicator {
+            margin-top: 10px;
+            text-align: center;
+            font-style: italic;
+        }
+        .info-section {
+            margin-top: 30px;
+            background-color: #e9e9e9;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background-color: #ddd;
+            cursor: pointer;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: #7E5835;
+            color: white;
+        }
+        .input-content {
+            display: none;
+        }
+        .input-content.active {
+            display: block;
+        }
+        #pdfPreview {
+            width: 100%;
+            min-height: 200px;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+            text-align: center;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        #pdfPreview canvas {
+            max-width: 100%;
+            height: auto;
+            margin: 0 auto;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .progress {
+            height: 100%;
+            background-color: #7E5835;
+            width: 0;
+            transition: width 0.3s;
+            text-align: center;
+            color: white;
+            font-size: 12px;
+            line-height: 20px;
+        }
+        .ascii-controls {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        .ascii-preview {
+            font-family: monospace;
+            white-space: pre;
+            background-color: #f8f8f8;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: auto;
+        }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+        .file-input-button {
+            display: inline-block;
+            background-color: #7E5835;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #fileLabel {
+            margin-left: 10px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>Minecraft Book Formatter</h1>
+    
+    <div class="container">
+        <div class="input-area">
+            <div class="tabs">
+                <div class="tab active" data-tab="text">Text Input</div>
+                <div class="tab" data-tab="pdf">PDF Upload</div>
+            </div>
+            
+            <div class="input-content active" id="textInput">
+                <h2>Input Text</h2>
+                <p>Paste your text below and click "Format for Minecraft"</p>
+                <textarea id="inputText" placeholder="Enter your text here..."></textarea>
+                <div style="margin-top: 10px;">
+                    <button id="formatTextButton">Format for Minecraft</button>
+                    <button id="clearTextButton">Clear</button>
+                </div>
+            </div>
+            
+            <div class="input-content" id="pdfInput">
+                <h2>Upload PDF</h2>
+                <p>Upload a PDF file to extract text and convert images to ASCII art</p>
+                <div class="file-input-wrapper">
+                    <div class="file-input-button">Choose PDF File</div>
+                    <input type="file" id="pdfFile" accept=".pdf" />
+                </div>
+                <span id="fileLabel">No file selected</span>
+                
+                <div id="pdfPreview">
+                    <p>PDF preview will appear here</p>
+                </div>
+                
+                <div class="progress-bar" id="progressBarContainer" style="display: none;">
+                    <div class="progress" id="progressBar">0%</div>
+                </div>
+                
+                <div style="margin-top: 10px;">
+                    <button id="extractButton" disabled>Extract Content</button>
+                    <button id="clearPdfButton">Clear</button>
+                </div>
+                
+                <div class="ascii-controls" style="display: none;" id="asciiControls">
+                    <h3>ASCII Art Settings</h3>
+                    <div>
+                        <label>Character Set: </label>
+                        <select id="charsetSelect">
+                            <option value="simple">#@%+=:-. </option>
+                            <option value="detailed">$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,"^`'. </option>
+                            <option value="blocks">█▓▒░ </option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Width (characters): </label>
+                        <input type="number" id="asciiWidth" value="20" min="10" max="50">
+                    </div>
+                    <button id="generateAsciiButton">Generate ASCII Art</button>
+                    
+                    <div class="ascii-preview" id="asciiPreview"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="output-area">
+            <h2>Minecraft Book Preview</h2>
+            <div class="book-viewer">
+                <div class="book">
+                    <div class="book-page" id="bookPage"></div>
+                </div>
+            </div>
+            <div class="page-indicator" id="pageIndicator">Page 0 of 0</div>
+            <div class="control-panel">
+                <button id="prevPage" disabled>Previous Page</button>
+                <button id="nextPage" disabled>Next Page</button>
+                <button id="copyPage" disabled>Copy Current Page</button>
+                <button id="copyAll" disabled>Copy All</button>
+            </div>
+            <div class="output-display">
+                <h3>Formatted Output (All Pages)</h3>
+                <textarea id="outputText" readonly></textarea>
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <h2>About Minecraft Books</h2>
+            <p>Minecraft books have the following limitations:</p>
+            <ul>
+                <li>Maximum of 100 pages per book</li>
+                <li>Each page can fit approximately 14 lines</li>
+                <li>Each line can fit around 23 characters</li>
+            </ul>
+            <p>This tool automatically formats your text to fit these constraints and can convert PDF content including:</p>
+            <ul>
+                <li>Text extraction from PDF documents</li>
+                <li>Converting images to ASCII art using keyboard characters</li>
+                <li>Preview of both text and images in Minecraft book format</li>
+            </ul>
+            <p>Use the preview above to see how your content will look in-game.</p>
+        </div>
+    </div>
+
+    <script>
+        // Constants for Minecraft book formatting
+        const MAX_LINES_PER_PAGE = 14;
+        const MAX_CHARS_PER_LINE = 23;
+        const MAX_PAGES = 100;
+        
+        // Global variables
+        let formattedPages = [];
+        let currentPageIndex = 0;
+        let pdfDocument = null;
+        let currentPage = 1;
+        let extractedText = '';
+        let pdfImages = [];
+
+        // DOM elements
+        const inputText = document.getElementById('inputText');
+        const outputText = document.getElementById('outputText');
+        const bookPage = document.getElementById('bookPage');
+        const pageIndicator = document.getElementById('pageIndicator');
+        const formatTextButton = document.getElementById('formatTextButton');
+        const clearTextButton = document.getElementById('clearTextButton');
+        const prevPageButton = document.getElementById('prevPage');
+        const nextPageButton = document.getElementById('nextPage');
+        const copyPageButton = document.getElementById('copyPage');
+        const copyAllButton = document.getElementById('copyAll');
+        const pdfFileInput = document.getElementById('pdfFile');
+        const fileLabel = document.getElementById('fileLabel');
+        const pdfPreview = document.getElementById('pdfPreview');
+        const extractButton = document.getElementById('extractButton');
+        const clearPdfButton = document.getElementById('clearPdfButton');
+        const progressBarContainer = document.getElementById('progressBarContainer');
+        const progressBar = document.getElementById('progressBar');
+        const asciiControls = document.getElementById('asciiControls');
+        const charsetSelect = document.getElementById('charsetSelect');
+        const asciiWidth = document.getElementById('asciiWidth');
+        const generateAsciiButton = document.getElementById('generateAsciiButton');
+        const asciiPreview = document.getElementById('asciiPreview');
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and content
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.input-content').forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding content
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab + 'Input').classList.add('active');
+            });
+        });
+
+        // Format text for Minecraft books
+        function formatTextForMinecraft(text) {
+            const words = text.split(/\s+/);
+            const pages = [];
+            let currentPage = [];
+            let currentLine = '';
+            
+            // Process each word
+            for (const word of words) {
+                // Check if adding this word exceeds the line limit
+                if ((currentLine + ' ' + word).trim().length > MAX_CHARS_PER_LINE) {
+                    // Line would be too long, add current line to page and start a new line
+                    currentPage.push(currentLine.trim());
+                    currentLine = word;
+                    
+                    // Check if we've reached the max lines for this page
+                    if (currentPage.length >= MAX_LINES_PER_PAGE) {
+                        pages.push(currentPage.join('\n'));
+                        currentPage = [];
+                        
+                        // Check if we've reached max pages
+                        if (pages.length >= MAX_PAGES) {
+                            break;
+                        }
+                    }
+                } else {
+                    // Add word to current line
+                    currentLine = currentLine ? currentLine + ' ' + word : word;
+                }
+            }
+            
+            // Add any remaining content
+            if (currentLine) {
+                currentPage.push(currentLine.trim());
+            }
+            if (currentPage.length > 0) {
+                pages.push(currentPage.join('\n'));
+            }
+            
+            return pages;
+        }
+
+        // Update the book display with the current page
+        function updateBookDisplay() {
+            if (formattedPages.length > 0) {
+                bookPage.textContent = formattedPages[currentPageIndex] || '';
+                pageIndicator.textContent = `Page ${currentPageIndex + 1} of ${formattedPages.length}`;
+                
+                // Update button states
+                prevPageButton.disabled = currentPageIndex <= 0;
+                nextPageButton.disabled = currentPageIndex >= formattedPages.length - 1;
+                copyPageButton.disabled = false;
+                copyAllButton.disabled = false;
+            } else {
+                bookPage.textContent = '';
+                pageIndicator.textContent = 'Page 0 of 0';
+                prevPageButton.disabled = true;
+                nextPageButton.disabled = true;
+                copyPageButton.disabled = true;
+                copyAllButton.disabled = true;
+            }
+        }
+
+        // Format for Minecraft button
+        formatTextButton.addEventListener('click', () => {
+            const text = inputText.value;
+            formattedPages = formatTextForMinecraft(text);
+            currentPageIndex = 0;
+            
+            // Update display
+            outputText.value = formattedPages.join('\n\n--- PAGE BREAK ---\n\n');
+            updateBookDisplay();
+        });
+
+        // Clear text button
+        clearTextButton.addEventListener('click', () => {
+            inputText.value = '';
+            outputText.value = '';
+            formattedPages = [];
+            currentPageIndex = 0;
+            updateBookDisplay();
+        });
+
+        // Page navigation buttons
+        prevPageButton.addEventListener('click', () => {
+            if (currentPageIndex > 0) {
+                currentPageIndex--;
+                updateBookDisplay();
+            }
+        });
+
+        nextPageButton.addEventListener('click', () => {
+            if (currentPageIndex < formattedPages.length - 1) {
+                currentPageIndex++;
+                updateBookDisplay();
+            }
+        });
+
+        // Copy buttons
+        copyPageButton.addEventListener('click', () => {
+            if (formattedPages.length > 0) {
+                navigator.clipboard.writeText(formattedPages[currentPageIndex])
+                    .then(() => alert('Current page copied to clipboard!'))
+                    .catch(err => console.error('Failed to copy: ', err));
+            }
+        });
+
+        copyAllButton.addEventListener('click', () => {
+            if (formattedPages.length > 0) {
+                navigator.clipboard.writeText(formattedPages.join('\n\n--- PAGE BREAK ---\n\n'))
+                    .then(() => alert('All formatted text copied to clipboard!'))
+                    .catch(err => console.error('Failed to copy: ', err));
+            }
+        });
+
+        // PDF handling
+        pdfFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                fileLabel.textContent = file.name;
+                loadPdf(file);
+                extractButton.disabled = false;
+            } else {
+                fileLabel.textContent = 'No file selected';
+                extractButton.disabled = true;
+            }
+        });
+
+        clearPdfButton.addEventListener('click', () => {
+            pdfFileInput.value = '';
+            fileLabel.textContent = 'No file selected';
+            pdfPreview.innerHTML = '<p>PDF preview will appear here</p>';
+            extractButton.disabled = true;
+            asciiControls.style.display = 'none';
+            progressBarContainer.style.display = 'none';
+            pdfDocument = null;
+            pdfImages = [];
+            extractedText = '';
+        });
+
+        // Load PDF file
+        function loadPdf(file) {
+            const fileReader = new FileReader();
+            
+            fileReader.onload = function() {
+                const typedArray = new Uint8Array(this.result);
+                
+                pdfjsLib.getDocument(typedArray).promise.then(function(pdf) {
+                    pdfDocument = pdf;
+                    
+                    // Display first page as preview
+                    renderPage(1);
+                    
+                    console.log(`PDF loaded with ${pdf.numPages} pages`);
+                }).catch(function(error) {
+                    console.error('Error loading PDF:', error);
+                    pdfPreview.innerHTML = `<p>Error loading PDF: ${error.message}</p>`;
+                });
+            };
+            
+            fileReader.readAsArrayBuffer(file);
+        }
+
+        // Render PDF page to canvas
+        function renderPage(pageNum) {
+            pdfDocument.getPage(pageNum).then(function(page) {
+                const viewport = page.getViewport({ scale: 1.0 });
+                
+                // Create canvas for rendering
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                // Clear and add canvas to preview
+                pdfPreview.innerHTML = '';
+                pdfPreview.appendChild(canvas);
+                
+                // Render PDF page
+                page.render({
+                    canvasContext: context,
+                    viewport: viewport
+                });
+                
+                currentPage = pageNum;
+            });
+        }
+
+        // Extract content from PDF
+        extractButton.addEventListener('click', async () => {
+            if (!pdfDocument) return;
+            
+            extractedText = '';
+            pdfImages = [];
+            progressBarContainer.style.display = 'block';
+            
+            const totalPages = pdfDocument.numPages;
+            
+            for (let i = 1; i <= totalPages; i++) {
+                // Update progress
+                const progress = Math.round((i / totalPages) * 100);
+                progressBar.style.width = `${progress}%`;
+                progressBar.textContent = `${progress}%`;
+                
+                // Get page
+                const page = await pdfDocument.getPage(i);
+                
+                // Extract text
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(' ');
+                extractedText += pageText + '\n\n';
+                
+                // Extract images (simplified approach - in reality, PDF image extraction is complex)
+                try {
+                    const viewport = page.getViewport({ scale: 1.0 });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    await page.render({
+                        canvasContext: context,
+                        viewport: viewport
+                    }).promise;
+                    
+                    // Save image data for ASCII conversion
+                    pdfImages.push({
+                        dataUrl: canvas.toDataURL('image/png'),
+                        pageNum: i
+                    });
+                } catch (error) {
+                    console.error('Error extracting image from page', i, error);
+                }
+            }
+            
+            // Format extracted text
+            inputText.value = extractedText;
+            formattedPages = formatTextForMinecraft(extractedText);
+            currentPageIndex = 0;
+            outputText.value = formattedPages.join('\n\n--- PAGE BREAK ---\n\n');
+            updateBookDisplay();
+            
+            // Show ASCII art controls if images were found
+            if (pdfImages.length > 0) {
+                asciiControls.style.display = 'block';
+                // Load the first image as preview
+                showImagePreview(0);
+            }
+        });
+
+        // Show image preview
+        function showImagePreview(index) {
+            if (pdfImages.length === 0 || index < 0 || index >= pdfImages.length) return;
+            
+            const img = new Image();
+            img.src = pdfImages[index].dataUrl;
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 300;
+                canvas.height = 300 * (img.height / img.width);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                // Display image
+                const previewDiv = document.createElement('div');
+                previewDiv.innerHTML = `<p>Image from page ${pdfImages[index].pageNum}</p>`;
+                previewDiv.appendChild(canvas);
+                
+                // Add navigation if multiple images
+                if (pdfImages.length > 1) {
+                    const nav = document.createElement('div');
+                    nav.style.marginTop = '10px';
+                    
+                    if (index > 0) {
+                        const prevBtn = document.createElement('button');
+                        prevBtn.textContent = 'Previous Image';
+                        prevBtn.onclick = () => showImagePreview(index - 1);
+                        nav.appendChild(prevBtn);
+                    }
+                    
+                    if (index < pdfImages.length - 1) {
+                        const nextBtn = document.createElement('button');
+                        nextBtn.textContent = 'Next Image';
+                        nextBtn.onclick = () => showImagePreview(index + 1);
+                        nav.appendChild(nextBtn);
+                    }
+                    
+                    previewDiv.appendChild(nav);
+                }
+                
+                // Store current image index
+                previewDiv.dataset.imageIndex = index;
+                
+                asciiPreview.innerHTML = '';
+                asciiPreview.appendChild(previewDiv);
+            };
+        }
+
+        // Generate ASCII art
+        generateAsciiButton.addEventListener('click', () => {
+            const previewDiv = asciiPreview.querySelector('div');
+            if (!previewDiv || !previewDiv.dataset.imageIndex) return;
+            
+            const imageIndex = parseInt(previewDiv.dataset.imageIndex);
+            const img = new Image();
+            img.src = pdfImages[imageIndex].dataUrl;
+            
+            img.onload = function() {
+                const width = parseInt(asciiWidth.value);
+                const height = Math.round(width * (img.height / img.width) / 2);  // Adjust for character aspect ratio
+                const charset = charsetSelect.value === 'simple' ? '#@%+=:-. ' : 
+                               (charsetSelect.value === 'detailed' ? '$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,"^`\'. ' : '█▓▒░ ');
+                
+                const asciiArt = imageToAscii(img, width, height, charset);
+                
+                // Display ASCII art
+                const pre = document.createElement('pre');
+                pre.textContent = asciiArt;
+                
+                const addToBookBtn = document.createElement('button');
+                addToBookBtn.textContent = 'Add to Minecraft Book';
+                addToBookBtn.onclick = () => {
+                    // Format ASCII art for Minecraft book
+                    const asciiLines = asciiArt.split('\n');
+                    const asciiPages = [];
+                    
+                    let currentPage = [];
+                    for (let i = 0; i < asciiLines.length; i++) {
+                        currentPage.push(asciiLines[i]);
+                        
+                        if (currentPage.length >= MAX_LINES_PER_PAGE || i === asciiLines.length - 1) {
+                            asciiPages.push(currentPage.join('\n'));
+                            currentPage = [];
+                        }
+                    }
+                    
+                    // Add ASCII art pages to existing pages
+                    formattedPages = formattedPages.concat(asciiPages);
+                    
+                    // Update display
+                    outputText.value = formattedPages.join('\n\n--- PAGE BREAK ---\n\n');
+                    currentPageIndex = formattedPages.length - asciiPages.length;  // Jump to first ASCII page
+                    updateBookDisplay();
+                    
+                    alert(`Added ASCII art (${asciiPages.length} pages) to the Minecraft book!`);
+                };
+                
+                asciiPreview.innerHTML = '';
+                asciiPreview.appendChild(pre);
+                asciiPreview.appendChild(addToBookBtn);
+            };
+        });
+
+        // Convert image to ASCII art
+        function imageToAscii(img, width, height, charset) {
+            // Create canvas to sample image
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Draw image to canvas
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Get image data
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            
+            let asciiArt = '';
+            
+            // Convert pixels to ASCII
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    // Get pixel brightness (0-255)
+                    const offset = (y * width + x) * 4;
+                    const r = data[offset];
+                    const g = data[offset + 1];
+                    const b = data[offset + 2];
+                    const brightness = (r + g + b) / 3;
+                    
+                    // Map brightness to character
+                    const charIndex = Math.floor(brightness / 256 * charset.length);
+                    const char = charset[Math.min(charset.length - 1, charIndex)];
+                    
+                    asciiArt += char;
+                }
+                asciiArt += '\n';
+            }
+            
+            return asciiArt;
+        }
+
+        // Initialize
+        updateBookDisplay();
+    </script>
+</body>
+</html>
